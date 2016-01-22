@@ -1,30 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.ComponentModel;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
 using Windows.Devices.Enumeration;
 using Windows.Devices.SerialCommunication;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
 
 namespace SerialDeviceSample
 {
     /// <summary>
-    /// 使用SerialDevice Class
-    /// 透過RTU以Modbus封裝，對URAT0傳送指令
+    /// Implementation of the Modbus RTU via Raspberry pi UART0
+    /// This example uses Windows.Devices.SerialCommunication.SerialDevice
+    /// The user interface can be generated 03H Read Holding Registers command,
+    /// But can also be enter other command in the "Command Buffer".
     /// </summary>
     public sealed partial class MainPage : Page
     {
@@ -82,22 +73,26 @@ namespace SerialDeviceSample
 
     public class MainViewModel : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged = (sender, args) =>
+        byte address;
+        byte function;
+        ushort register;
+        ushort length;
+        static readonly uint[] _lookup32 = CreateLookup32();
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public MainViewModel()
         {
-            //todo
-        };
+            address = 1;
+            function = 3;
+            register = 1;
+            length = 1;
+        }
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        byte address;
-        byte function;
-        ushort register;
-        ushort length;
-
-        private static readonly uint[] _lookup32 = CreateLookup32();
 
         public string Address
         {
@@ -278,14 +273,6 @@ namespace SerialDeviceSample
                 cmd[7] = (byte)(crc16 >> 8);
                 return cmd;
             }
-        }
-
-        public MainViewModel()
-        {
-            address = 1;
-            function = 3;
-            register = 1;
-            length = 1;
         }
 
         private static uint[] CreateLookup32()
