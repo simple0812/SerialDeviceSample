@@ -9,55 +9,97 @@
 
     <Page.Resources>
         <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="FontSize" Value="36"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="20,0"/>
+        </Style>
+        <Style x:Key="MarkStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="36"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="ContentStyle" TargetType="TextBox">
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="36"/>
             <Setter Property="TextAlignment" Value="Right"/>
         </Style>
     </Page.Resources>
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Padding="50">
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.DataContext>
             <local:MainViewModel/>
         </Grid.DataContext>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="2*"/>
-            <RowDefinition Height="8*"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Orientation="Vertical">
-            <StackPanel Orientation="Horizontal" Padding="20">
-                <StackPanel Orientation="Horizontal" Padding="20,0">
-                    <TextBlock Text="Address" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="txtAddress" Text="{Binding Address,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
-                    <TextBlock Text="h" Style="{StaticResource LabelStyle}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Padding="20,0">
-                    <TextBlock Text="Function" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="txtFunction" Text="{Binding Function,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEnabled="False" Style="{StaticResource ContentStyle}"/>
-                    <TextBlock Text="h" Style="{StaticResource LabelStyle}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Padding="20,0">
-                    <TextBlock Text="Register" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="txtRegisterUpper" Text="{Binding RegisterUpper,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
-                    <TextBox x:Name="txtRegisterLower" Text="{Binding RegisterLower,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
-                    <TextBlock Text="h" Style="{StaticResource LabelStyle}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Padding="20,0">
-                    <TextBlock Text="Length" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="txtLengthUpper" Text="{Binding LengthUpper,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
-                    <TextBox x:Name="txtLengthLower" Text="{Binding LengthLower,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
-                    <TextBlock Text="h" Style="{StaticResource LabelStyle}"/>
-                </StackPanel>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Padding="20">
-                <TextBlock Text="Command Buffer" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
-                <TextBox x:Name="txtModbus" Text="{Binding Modbus,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}" Width="800" Margin="20,0"/>
-                <TextBlock Text="CRC" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
-                <TextBox x:Name="txtCRC" Text="{Binding CRC}" Style="{StaticResource ContentStyle}" Margin="20,0"/>
-                <Button Margin="10,0" Width="200" VerticalAlignment="Stretch" FontSize="32" Click="Button_Click">Send</Button>
-            </StackPanel>
-        </StackPanel>
-        <ListBox Grid.Row="1" x:Name="txtResult"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="500"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Address" Style="{StaticResource LabelStyle}"/>
+            <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="txtAddress" Text="{Binding Address,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
+                <TextBlock Grid.Column="1" Text="h" Style="{StaticResource MarkStyle}"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Function" Style="{StaticResource LabelStyle}"/>
+            <Grid Grid.Row="1" Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="txtFunction" Text="{Binding Function,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEnabled="False" Style="{StaticResource ContentStyle}"/>
+                <TextBlock Grid.Column="1" Text="h" Style="{StaticResource MarkStyle}"/>
+            </Grid>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Register" Style="{StaticResource LabelStyle}"/>
+            <Grid Grid.Row="2" Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="txtRegisterUpper" Text="{Binding RegisterUpper,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
+                <TextBox Grid.Column="1" x:Name="txtRegisterLower" Text="{Binding RegisterLower,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
+                <TextBlock Grid.Column="2" Text="h" Style="{StaticResource MarkStyle}"/>
+            </Grid>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Length" Style="{StaticResource LabelStyle}"/>
+            <Grid Grid.Row="3" Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="txtLengthUpper" Text="{Binding LengthUpper,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
+                <TextBox Grid.Column="1" x:Name="txtLengthLower" Text="{Binding LengthLower,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}"/>
+                <TextBlock Grid.Column="2" Text="h" Style="{StaticResource MarkStyle}"/>
+            </Grid>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Buffer" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
+            <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtModbus" Text="{Binding Modbus,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ContentStyle}" Width="Auto"/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="CRC" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
+            <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtCRC" Text="{Binding CRC}" Style="{StaticResource ContentStyle}"/>
+
+            <Button Grid.Row="6" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" FontSize="32" Click="Button_Click">Send</Button>
+        </Grid>
+
+        <ListBox Grid.Column="1" x:Name="txtResult" Margin="20"/>
     </Grid>
 </Page>
