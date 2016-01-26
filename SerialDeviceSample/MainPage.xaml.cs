@@ -105,6 +105,7 @@ namespace SerialDeviceSample
                 if (!string.IsNullOrEmpty(value))
                 {
                     address = byte.Parse(value, NumberStyles.HexNumber);
+                    function = 3;
                     this.OnPropertyChanged();
                     this.OnPropertyChanged("Modbus");
                     this.OnPropertyChanged("CRC");
@@ -141,6 +142,7 @@ namespace SerialDeviceSample
                 if (!string.IsNullOrEmpty(value))
                 {
                     register = (ushort)((register & 0xFF) + (ushort.Parse(value, NumberStyles.HexNumber) << 8));
+                    function = 3;
                     this.OnPropertyChanged();
                     this.OnPropertyChanged("Modbus");
                     this.OnPropertyChanged("CRC");
@@ -159,6 +161,7 @@ namespace SerialDeviceSample
                 if (!string.IsNullOrEmpty(value))
                 {
                     register = (ushort)((register - (register & 0xFF)) + (ushort.Parse(value, NumberStyles.HexNumber) & 0xFF));
+                    function = 3;
                     this.OnPropertyChanged();
                     this.OnPropertyChanged("Modbus");
                     this.OnPropertyChanged("CRC");
@@ -177,6 +180,7 @@ namespace SerialDeviceSample
                 if (!string.IsNullOrEmpty(value))
                 {
                     length = (ushort)((length & 0xFF) + (ushort.Parse(value, NumberStyles.HexNumber) << 8));
+                    function = 3;
                     this.OnPropertyChanged();
                     this.OnPropertyChanged("Modbus");
                     this.OnPropertyChanged("CRC");
@@ -195,6 +199,7 @@ namespace SerialDeviceSample
                 if (!string.IsNullOrEmpty(value))
                 {
                     length = (ushort)(length - (length & 0xFF) + (ushort.Parse(value, NumberStyles.HexNumber) & 0xFF));
+                    function = 3;
                     this.OnPropertyChanged();
                     this.OnPropertyChanged("Modbus");
                     this.OnPropertyChanged("CRC");
