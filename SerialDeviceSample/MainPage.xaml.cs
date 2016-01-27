@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
 using System.Threading;
 using Windows.Devices.Enumeration;
 using Windows.Devices.SerialCommunication;
@@ -32,33 +34,44 @@ namespace SerialDeviceSample
 
             try
             {
+                // init serial device
                 string aqs = SerialDevice.GetDeviceSelector("UART0");
                 var dis = await DeviceInformation.FindAllAsync(aqs);
-                SerialDevice SerialPort = await SerialDevice.FromIdAsync(dis[0].Id);
+                SerialDevice serialPort = await SerialDevice.FromIdAsync(dis[0].Id);
 
-                using (var writer = new DataWriter(SerialPort.OutputStream))
+                // request timeout
+                serialPort.WriteTimeout = new TimeSpan(0, 0, 1);
+                // response timeout
+                serialPort.ReadTimeout = new TimeSpan(0, 0, 3);
+
+                using (var writer = new DataWriter(serialPort.OutputStream))
                 {
-                    writer.WriteString(txdStr);
+                    // convert modbus command hex string to byte[]
+                    var modbus = MainViewModel.ConvertHexToBytes(txtModbus.Text + txtCRC.Text);
 
-                    using (var cts = new CancellationTokenSource(SerialPort.WriteTimeout))
+                    // set modbus command in writer
+                    writer.WriteBuffer(modbus.AsBuffer());
+
+                    using (var cts = new CancellationTokenSource(serialPort.WriteTimeout))
                     {
+                        // send request
                         await writer.StoreAsync().AsTask(cts.Token);
                     }
 
                     writer.DetachStream();
                 }
 
-                using (var reader = new DataReader(SerialPort.InputStream))
+                using (var reader = new DataReader(serialPort.InputStream))
                 {
-                    using (var cts = new CancellationTokenSource(SerialPort.ReadTimeout))
+                    using (var cts = new CancellationTokenSource(serialPort.ReadTimeout))
                     {
-                        var read = await reader.LoadAsync(14).AsTask(cts.Token);
+                        // set buffer length
+                        uint numBytesLoaded = await reader.LoadAsync((uint)2048).AsTask(cts.Token);
 
-                        if (read >= 14)
-                        {
-                            rxdStr = reader.ReadString(14);
-                            reader.DetachStream();
-                        }
+                        // get response
+                        string text = reader.ReadString(numBytesLoaded);
+
+                        reader.DetachStream();
                     }
                 }
             }
@@ -291,7 +304,7 @@ namespace SerialDeviceSample
             return result;
         }
 
-        private static string ByteArrayToHexViaLookup32(byte[] bytes)
+        public static string ByteArrayToHexViaLookup32(byte[] bytes)
         {
             var lookup32 = _lookup32;
             var result = new char[bytes.Length * 2];
@@ -304,14 +317,14 @@ namespace SerialDeviceSample
             return new string(result);
         }
 
-        private static string ByteArrayToHexViaLookup32(ushort word)
+        public static string ByteArrayToHexViaLookup32(ushort word)
         {
             byte[] bytes = { (byte)word, (byte)(word >> 8) };
             var result = ByteArrayToHexViaLookup32(bytes);
             return result;
         }
 
-        private static byte[] ConvertHexToBytes(string input)
+        public static byte[] ConvertHexToBytes(string input)
         {
             var result = new byte[(input.Length + 1) / 2];
             var offset = 0;
