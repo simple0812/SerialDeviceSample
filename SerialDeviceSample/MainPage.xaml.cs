@@ -21,6 +21,8 @@ namespace SerialDeviceSample
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        ModbusServer srv = null;
+
         public MainPage()
         {
             this.InitializeComponent();
@@ -28,59 +30,79 @@ namespace SerialDeviceSample
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
+            var btn = sender as Button;
+            btn.IsEnabled = false;
             string msgTemp = "TxD:{0} || RxD: \"{1}\"";
-            string txdStr = string.Format(" data=\"{0}\", crc=\"{1}\" ", txtModbus.Text, txtCRC.Text);
-            string rxdStr = "";
+            string msgTempDebug = "TxD:{0} Elapsed time:{1}ms\r\nRxD: \"{2}\" Elapsed time:{3}ms";
+            string command = txtModbus.Text + txtCRC.Text;
+            string txdMsg = string.Format(" data=\"{0}\", crc=\"{1}\" ", txtModbus.Text, txtCRC.Text);
+            string rxdMsg = "";
 
-            try
+            byte[] cache = MainViewModel.ConvertHexToBytes(command);
+            var buffer = cache.AsBuffer();
+            byte[] result;
+
+            switch (btn.Content.ToString())
             {
-                // init serial device
-                string aqs = SerialDevice.GetDeviceSelector("UART0");
-                var dis = await DeviceInformation.FindAllAsync(aqs);
-                SerialDevice serialPort = await SerialDevice.FromIdAsync(dis[0].Id);
-
-                // request timeout
-                serialPort.WriteTimeout = new TimeSpan(0, 0, 1);
-                // response timeout
-                serialPort.ReadTimeout = new TimeSpan(0, 0, 3);
-
-                using (var writer = new DataWriter(serialPort.OutputStream))
-                {
-                    // convert modbus command hex string to byte[]
-                    var modbus = MainViewModel.ConvertHexToBytes(txtModbus.Text + txtCRC.Text);
-
-                    // set modbus command in writer
-                    writer.WriteBuffer(modbus.AsBuffer());
-
-                    using (var cts = new CancellationTokenSource(serialPort.WriteTimeout))
+                case "Sending":
+                    try
                     {
-                        // send request
-                        await writer.StoreAsync().AsTask(cts.Token);
+                        if (srv == null)
+                        {
+                            // init serial device
+                            srv = new ModbusServer("UART0");
+                            await srv.Open();
+                        }
+
+                        await srv.Send(buffer);
+                        var received = await srv.Receive();
+                        srv.Clear();
+
+                        result = received.ToArray();
+                        rxdMsg = MainViewModel.ByteArrayToHexViaLookup32(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        rxdMsg = ex.Message.Replace("\r\n", "\\r\\n");
                     }
 
-                    writer.DetachStream();
-                }
-
-                using (var reader = new DataReader(serialPort.InputStream))
-                {
-                    using (var cts = new CancellationTokenSource(serialPort.ReadTimeout))
+                    txtResult.Items.Insert(0, string.Format(msgTemp, txdMsg, rxdMsg));
+                    break;
+                case "Continuous sending":
+                    int count;
+                    if (int.TryParse(txtFrequency.Text, out count))
                     {
-                        // set buffer length
-                        uint numBytesLoaded = await reader.LoadAsync((uint)2048).AsTask(cts.Token);
+                        if (srv == null)
+                        {
+                            // init serial device
+                            srv = new ModbusServer("UART0");
+                            await srv.Open();
+                        }
 
-                        // get response
-                        string text = reader.ReadString(numBytesLoaded);
+                        txtResult.Items.Insert(0, "Start sending");
+                        for (int i = 0; i < count; i++)
+                        {
+                            var begin = DateTime.Now;
+                            await srv.Send(buffer);
+                            var writeSpan = DateTime.Now;
 
-                        reader.DetachStream();
+                            var received = await srv.Receive();
+                            var readSpan = DateTime.Now;
+
+                            srv.Clear();
+
+                            result = received.ToArray();
+                            rxdMsg = MainViewModel.ByteArrayToHexViaLookup32(result);
+
+                            txtResult.Items.Insert(0, string.Format(msgTempDebug, txdMsg, (writeSpan - begin).TotalMilliseconds, rxdMsg, (readSpan - writeSpan).TotalMilliseconds));
+                        }
+                        txtResult.Items.Insert(0, "End sending");
                     }
-                }
+                    break;
+                default:
+                    break;
             }
-            catch (Exception ex)
-            {
-                rxdStr = ex.Message.Replace("\r\n", "\\r\\n");
-            }
-
-            txtResult.Items.Insert(0, string.Format(msgTemp, txdStr, rxdStr));
+            btn.IsEnabled = true;
         }
     }
 
@@ -96,7 +118,7 @@ namespace SerialDeviceSample
 
         public MainViewModel()
         {
-            address = 1;
+            address = 100;
             function = 3;
             register = 1;
             length = 1;
