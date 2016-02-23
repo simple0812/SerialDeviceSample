@@ -14,6 +14,12 @@
             <Setter Property="Padding" Value="20,0"/>
             <Setter Property="Style" Value="{ThemeResource TitleTextBlockStyle}"/>
         </Style>
+        <Style x:Key="TitleStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="20,0"/>
+            <Setter Property="Style" Value="{ThemeResource TitleTextBlockStyle}"/>
+        </Style>
         <Style x:Key="MarkStyle" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -23,16 +29,20 @@
             <Setter Property="Style" Value="{ThemeResource AutoSuggestBoxTextBoxStyle}"/>
         </Style>
     </Page.Resources>
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.DataContext>
-            <local:MainViewModel/>
-        </Grid.DataContext>
+    <Grid Name="mainPanel" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="350"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid Grid.Column="0" Margin="20">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -101,11 +111,28 @@
             <Button Grid.Row="6" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Style="{ThemeResource TextBlockButtonStyle}" Click="Button_Click">Sending</Button>
 
             <TextBlock Grid.Row="7" Grid.Column="0" Text="Frequency" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
-            <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtFrequency" Text="99" Style="{StaticResource ContentStyle}"/>
-            
-            <Button Grid.Row="8" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Style="{ThemeResource TextBlockButtonStyle}" Click="Button_Click">Continuous sending</Button>
+            <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtFrequency" Text="{Binding Frequency,Mode=TwoWay}" Style="{StaticResource ContentStyle}"/>
+
+            <Button Grid.Row="8" Grid.ColumnSpan="2" Name="csbtn" VerticalAlignment="Top" HorizontalAlignment="Stretch" Style="{ThemeResource TextBlockButtonStyle}" Click="Button_Click">Continuous sending</Button>
+            <Button Grid.Row="9" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" Style="{ThemeResource TextBlockButtonStyle}" Click="Button_Click">Reconnect</Button>
+
+            <Border Grid.Row="10" Grid.ColumnSpan="2" Background="LightGray">
+                <TextBlock Text="Settings" Style="{StaticResource TitleStyle}"/>
+            </Border>
+            <Border Grid.Row="11" Grid.Column="0" Background="LightGray">
+                <TextBlock Text="Writing Timeout(ms)" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
+            </Border>
+            <Border Grid.Row="11" Grid.Column="1" Background="LightGray">
+                <TextBox Text="{Binding WritingTimeout,Mode=TwoWay}" Style="{StaticResource ContentStyle}"/>
+            </Border>
+            <Border Grid.Row="12" Grid.Column="0" Background="LightGray">
+                <TextBlock Text="Reading Timeout(ms)" VerticalAlignment="Center" Style="{StaticResource LabelStyle}"/>
+            </Border>
+            <Border Grid.Row="12" Grid.Column="1" Background="LightGray">
+                <TextBox Text="{Binding ReadingTimeout,Mode=TwoWay}" Style="{StaticResource ContentStyle}"/>
+            </Border>
         </Grid>
 
-        <ListBox Grid.Column="1" x:Name="txtResult" Margin="20"/>
+        <ListBox Grid.Column="1" x:Name="resultsView" Margin="20"/>
     </Grid>
 </Page>
