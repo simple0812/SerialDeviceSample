@@ -1,13 +1,10 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
-using System.Threading;
-using Windows.Devices.Enumeration;
-using Windows.Devices.SerialCommunication;
-using Windows.Storage.Streams;
+using System.Threading.Tasks;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
@@ -21,88 +18,30 @@ namespace SerialDeviceSample
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        ModbusServer srv = null;
+        MainViewModel mvm = null;
 
         public MainPage()
         {
             this.InitializeComponent();
+            mvm = new MainViewModel();
+            mainPanel.DataContext = mvm;
+            resultsView.ItemsSource = mvm.Results;
         }
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
-            var btn = sender as Button;
-            btn.IsEnabled = false;
-            string msgTemp = "TxD:{0} || RxD: \"{1}\"";
-            string msgTempDebug = "TxD:{0} Elapsed time:{1}ms\r\nRxD: \"{2}\" Elapsed time:{3}ms";
-            string command = txtModbus.Text + txtCRC.Text;
-            string txdMsg = string.Format(" data=\"{0}\", crc=\"{1}\" ", txtModbus.Text, txtCRC.Text);
-            string rxdMsg = "";
-
-            byte[] cache = MainViewModel.ConvertHexToBytes(command);
-            var buffer = cache.AsBuffer();
-            byte[] result;
-
-            switch (btn.Content.ToString())
+            try
             {
-                case "Sending":
-                    try
-                    {
-                        if (srv == null)
-                        {
-                            // init serial device
-                            srv = new ModbusServer("UART0");
-                            await srv.Open();
-                        }
-
-                        await srv.Send(buffer);
-                        var received = await srv.Receive();
-                        srv.Clear();
-
-                        result = received.ToArray();
-                        rxdMsg = MainViewModel.ByteArrayToHexViaLookup32(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        rxdMsg = ex.Message.Replace("\r\n", "\\r\\n");
-                    }
-
-                    txtResult.Items.Insert(0, string.Format(msgTemp, txdMsg, rxdMsg));
-                    break;
-                case "Continuous sending":
-                    int count;
-                    if (int.TryParse(txtFrequency.Text, out count))
-                    {
-                        if (srv == null)
-                        {
-                            // init serial device
-                            srv = new ModbusServer("UART0");
-                            await srv.Open();
-                        }
-
-                        txtResult.Items.Insert(0, "Start sending");
-                        for (int i = 0; i < count; i++)
-                        {
-                            var begin = DateTime.Now;
-                            await srv.Send(buffer);
-                            var writeSpan = DateTime.Now;
-
-                            var received = await srv.Receive();
-                            var readSpan = DateTime.Now;
-
-                            srv.Clear();
-
-                            result = received.ToArray();
-                            rxdMsg = MainViewModel.ByteArrayToHexViaLookup32(result);
-
-                            txtResult.Items.Insert(0, string.Format(msgTempDebug, txdMsg, (writeSpan - begin).TotalMilliseconds, rxdMsg, (readSpan - writeSpan).TotalMilliseconds));
-                        }
-                        txtResult.Items.Insert(0, "End sending");
-                    }
-                    break;
-                default:
-                    break;
+                var btn = sender as Button;
+                btn.IsEnabled = false;
+                await mvm.Handle(btn.Content.ToString());
+                btn.IsEnabled = true;
+                csbtn.IsEnabled = true;
             }
-            btn.IsEnabled = true;
+            catch (Exception ex)
+            {
+
+            }
         }
     }
 
@@ -112,16 +51,34 @@ namespace SerialDeviceSample
         byte function;
         ushort register;
         ushort length;
-        static readonly uint[] _lookup32 = CreateLookup32();
+        int frequency;
+        double writingTimeout;
+        double readingTimeout;
+        ObservableCollection<string> results;
+
+        readonly uint[] _lookup32 = null;
+
+        ModbusServer srv = null;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public MainViewModel()
         {
+            if (srv == null)
+            {
+                // init serial device
+                srv = new ModbusServer("UART0");
+            }
+
+            _lookup32 = createLookup32();
             address = 100;
             function = 3;
             register = 1;
             length = 1;
+            frequency = 100;
+            writingTimeout = 100;
+            readingTimeout = 100;
+            results = new ObservableCollection<string>();
         }
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -255,14 +212,14 @@ namespace SerialDeviceSample
                     (byte)(length & 0xFF)
                 };
 
-                string hex = ByteArrayToHexViaLookup32(cmd);
+                string hex = byteArrayToHexViaLookup32(cmd);
                 return hex;
             }
             set
             {
                 if (!string.IsNullOrEmpty(value))
                 {
-                    byte[] cmd = ConvertHexToBytes(value);
+                    byte[] cmd = convertHexToBytes(value);
                     address = cmd[0];
                     function = cmd[1];
                     register = (ushort)((ushort)(cmd[2] << 8) + cmd[3]);
@@ -286,10 +243,53 @@ namespace SerialDeviceSample
                     (byte)(length & 0xFF)
                 };
 
-                var crc16 = ModbusCrc(cmd, cmd.Length);
+                var crc16 = modbusCrc(cmd, cmd.Length);
 
-                string hex = ByteArrayToHexViaLookup32(crc16);
+                string hex = byteArrayToHexViaLookup32(crc16);
                 return hex;
+            }
+        }
+
+        public int Frequency
+        {
+            get
+            {
+                return frequency;
+            }
+            set
+            {
+                frequency = value;
+                OnPropertyChanged();
+            }
+        }
+
+        //設定傳送逾時
+        public double WritingTimeout
+        {
+            get
+            {
+                return writingTimeout;
+            }
+            set
+            {
+                writingTimeout = value;
+                srv.SetWritingTimeout(writingTimeout);
+                OnPropertyChanged();
+            }
+        }
+
+        //設定接收逾時
+        public double ReadingTimeout
+        {
+            get
+            {
+                return readingTimeout;
+            }
+            set
+            {
+                readingTimeout = value;
+                srv.SetReadingTimeout(readingTimeout);
+                OnPropertyChanged();
             }
         }
 
@@ -308,14 +308,28 @@ namespace SerialDeviceSample
                     0
                 };
 
-                var crc16 = ModbusCrc(cmd, cmd.Length - 2);
+                var crc16 = modbusCrc(cmd, cmd.Length - 2);
                 cmd[6] = (byte)crc16;
                 cmd[7] = (byte)(crc16 >> 8);
                 return cmd;
             }
         }
 
-        private static uint[] CreateLookup32()
+        public ObservableCollection<string> Results
+        {
+            get { return results; }
+            set
+            {
+                if (results != value)
+                {
+                    results = value;
+                    OnPropertyChanged();
+                }
+
+            }
+        }
+
+        private uint[] createLookup32()
         {
             var result = new uint[256];
             for (int i = 0; i < 256; i++)
@@ -326,7 +340,7 @@ namespace SerialDeviceSample
             return result;
         }
 
-        public static string ByteArrayToHexViaLookup32(byte[] bytes)
+        private string byteArrayToHexViaLookup32(byte[] bytes)
         {
             var lookup32 = _lookup32;
             var result = new char[bytes.Length * 2];
@@ -339,14 +353,14 @@ namespace SerialDeviceSample
             return new string(result);
         }
 
-        public static string ByteArrayToHexViaLookup32(ushort word)
+        private string byteArrayToHexViaLookup32(ushort word)
         {
             byte[] bytes = { (byte)word, (byte)(word >> 8) };
-            var result = ByteArrayToHexViaLookup32(bytes);
+            var result = byteArrayToHexViaLookup32(bytes);
             return result;
         }
 
-        public static byte[] ConvertHexToBytes(string input)
+        private byte[] convertHexToBytes(string input)
         {
             var result = new byte[(input.Length + 1) / 2];
             var offset = 0;
@@ -362,7 +376,7 @@ namespace SerialDeviceSample
             return result;
         }
 
-        static ushort[] CrcTable =
+        ushort[] crcTable =
             {
             0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
             0XC601, 0X06C0, 0X0780, 0XC741, 0X0500, 0XC5C1, 0XC481, 0X0440,
@@ -398,15 +412,106 @@ namespace SerialDeviceSample
             0X8201, 0X42C0, 0X4380, 0X8341, 0X4100, 0X81C1, 0X8081, 0X4040
         };
 
-        public static ushort ModbusCrc(byte[] buffer, int length)
+        private ushort modbusCrc(byte[] buffer, int length)
         {
             ushort crc = 0xFFFF;
 
             for (int i = 0; i < length; i++)
             {
-                crc = (ushort)((crc >> 8) ^ CrcTable[(crc ^ buffer[i]) & 0xFF]);
+                crc = (ushort)((crc >> 8) ^ crcTable[(crc ^ buffer[i]) & 0xFF]);
             }
             return crc;
+        }
+
+        public async Task Handle(string type)
+        {
+            string msgTemp = "TxD:{0} || RxD: \"{1}\"";
+            string msgTempDebug = "TxD:{0} Elapsed time:{1}ms\r\nRxD: \"{2}\" Elapsed time:{3}ms";
+
+            string txdMsg = string.Format(" data=\"{0}\", crc=\"{1}\" ", Modbus, CRC);
+            string rxdMsg = "";
+
+            //modbus request
+            string command = Modbus + CRC;
+            byte[] cache = convertHexToBytes(command);
+
+            var buffer = cache.AsBuffer();
+            byte[] result;
+
+            switch (type)
+            {
+                case "Sending":
+                    try
+                    {
+                        await srv.Open(WritingTimeout, ReadingTimeout);
+                        await srv.Send(buffer);
+                        var received = await srv.Receive();
+                        srv.Clear();
+
+                        //modbus response
+                        result = received.ToArray();
+
+                        /*
+                        //byte convert to string sample
+                        Collection<string> resultStringCollection = new Collection<string>();
+                        foreach (var b in result)
+                        {
+                            resultStringCollection.Add(b.ToString("X2"));
+                        }
+                        */
+                        rxdMsg = byteArrayToHexViaLookup32(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        rxdMsg = ex.Message.Replace("\r\n", "\\r\\n");
+                    }
+
+                    Results.Insert(0, string.Format(msgTemp, txdMsg, rxdMsg));
+                    break;
+                case "Continuous sending":
+                    try
+                    {
+                        Results.Insert(0, "Start sending");
+                        await srv.Open(WritingTimeout, ReadingTimeout);
+
+                        for (int i = 0; i < Frequency; i++)
+                        {
+                            var begin = DateTime.Now;
+                            await srv.Send(buffer);
+                            var writeSpan = DateTime.Now;
+
+                            var received = await srv.Receive();
+                            var readSpan = DateTime.Now;
+
+                            srv.Clear();
+
+                            //modbus response
+                            result = received.ToArray();
+                            rxdMsg = byteArrayToHexViaLookup32(result);
+
+                            Results.Insert(0, string.Format(msgTempDebug, txdMsg, (writeSpan - begin).TotalMilliseconds, rxdMsg, (readSpan - writeSpan).TotalMilliseconds));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        rxdMsg = ex.Message.Replace("\r\n", "\\r\\n");
+                        Results.Insert(0, string.Format(msgTemp, txdMsg, rxdMsg));
+                    }
+                    Results.Insert(0, "End sending");
+                    break;
+                case "Reconnect":
+                    if (srv.Status == ModbusServer.ModbusServerStatus.Opened)
+                    {
+                        srv.Cancel();
+                        srv.Close();
+                        srv = null;
+                        srv = new ModbusServer("UART0");
+                        await srv.Open();
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }
