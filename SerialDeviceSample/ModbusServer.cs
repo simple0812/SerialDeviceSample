@@ -9,6 +9,18 @@ namespace SerialDeviceSample
 {
     public class ModbusServer
     {
+        public enum ModbusServerStatus
+        {
+            Opened, Opening, Closed, None, Initialled
+        }
+
+        private ModbusServerStatus status = ModbusServerStatus.None;
+        public ModbusServerStatus Status
+        {
+            get { return status; }
+            set { status = value; }
+        }
+
         SerialDevice serialPort = null;
         DataWriter dataWrite = null;
         DataReader dataReader = null;
@@ -25,40 +37,48 @@ namespace SerialDeviceSample
 
         string portName;
 
-        public bool IsInitialized
-        {
-            get { return !(serialPort == default(SerialDevice)); }
-        }
-
         public ModbusServer(string portName)
         {
             this.portName = portName;
+            Status = ModbusServerStatus.Initialled;
         }
 
         public async Task Open()
         {
-            try
+            if (Status == ModbusServerStatus.Initialled)
             {
-                string aqs = SerialDevice.GetDeviceSelector(portName);
-                var dis = await DeviceInformation.FindAllAsync(aqs);
-                serialPort = await SerialDevice.FromIdAsync(dis[0].Id);
+                try
+                {
+                    Status = ModbusServerStatus.Opening;
+                    string aqs = SerialDevice.GetDeviceSelector(portName);
+                    var dis = await DeviceInformation.FindAllAsync(aqs);
+                    serialPort = await SerialDevice.FromIdAsync(dis[0].Id);
 
-                serialPort.WriteTimeout = TimeSpan.FromMilliseconds(WRITE_TIMEOUT);
-                serialPort.ReadTimeout = TimeSpan.FromMilliseconds(READ_TIMEOUT);
-                serialPort.BaudRate = BAUD_RATE;
-                serialPort.Parity = SERIAL_PARITY;
-                serialPort.StopBits = SERIAL_STOP_BIT_COUNT;
-                serialPort.DataBits = DATA_BITS;
-                serialPort.Handshake = SERIAL_HANDSHAKE;
+                    serialPort.WriteTimeout = TimeSpan.FromMilliseconds(WRITE_TIMEOUT);
+                    serialPort.ReadTimeout = TimeSpan.FromMilliseconds(READ_TIMEOUT);
+                    serialPort.BaudRate = BAUD_RATE;
+                    serialPort.Parity = SERIAL_PARITY;
+                    serialPort.StopBits = SERIAL_STOP_BIT_COUNT;
+                    serialPort.DataBits = DATA_BITS;
+                    serialPort.Handshake = SERIAL_HANDSHAKE;
 
-                readCancellationTokenSource = new CancellationTokenSource();
+                    readCancellationTokenSource = new CancellationTokenSource();
 
-                listen(1024);
+                    listen(1024);
+                    Status = ModbusServerStatus.Opened;
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
             }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
+        }
+
+        public async Task Open(double writeTimeout, double readTimeout)
+        {
+            await Open();
+            serialPort.WriteTimeout = TimeSpan.FromMilliseconds(writeTimeout);
+            serialPort.ReadTimeout = TimeSpan.FromMilliseconds(readTimeout);
         }
 
         public void Clear()
@@ -89,7 +109,6 @@ namespace SerialDeviceSample
                         serialPort.Dispose();
                     }
                     serialPort = null;
-                    throw ex;
                 }
             }
             finally
@@ -104,18 +123,25 @@ namespace SerialDeviceSample
 
         private async Task readAsync(uint readBufferLength, CancellationToken cancellationToken)
         {
-            Task<uint> loadAsyncTask;
-            
-            cancellationToken.ThrowIfCancellationRequested();
-            
-            dataReader.InputStreamOptions = InputStreamOptions.Partial;
-            
-            loadAsyncTask = dataReader.LoadAsync(readBufferLength).AsTask(cancellationToken);
-
-            uint bytesRead = await loadAsyncTask;
-            if (bytesRead > 0)
+            try
             {
-                readBuffer = dataReader.ReadBuffer(bytesRead);
+                Task<uint> loadAsyncTask;
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                dataReader.InputStreamOptions = InputStreamOptions.Partial;
+
+                loadAsyncTask = dataReader.LoadAsync(readBufferLength).AsTask(cancellationToken);
+
+                uint bytesRead = await loadAsyncTask;
+                if (bytesRead > 0)
+                {
+                    readBuffer = dataReader.ReadBuffer(bytesRead);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
             }
         }
 
@@ -188,6 +214,7 @@ namespace SerialDeviceSample
                     readCancellationTokenSource.Cancel();
                 }
             }
+            Status = ModbusServerStatus.Closed;
         }
 
         public void Close()
@@ -197,6 +224,19 @@ namespace SerialDeviceSample
                 serialPort.Dispose();
             }
             serialPort = null;
+            Status = ModbusServerStatus.None;
+        }
+
+        public void SetWritingTimeout(double writingTimeout)
+        {
+            if (Status == ModbusServerStatus.Opened)
+                serialPort.WriteTimeout = TimeSpan.FromMilliseconds(writingTimeout);
+        }
+
+        public void SetReadingTimeout(double readingTimeout)
+        {
+            if (Status == ModbusServerStatus.Opened)
+                serialPort.ReadTimeout = TimeSpan.FromMilliseconds(readingTimeout);
         }
     }
 }
